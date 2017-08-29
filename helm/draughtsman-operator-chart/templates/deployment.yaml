@@ -1,0 +1,60 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: draughtsman-operator
+  namespace: draughtsman
+  labels:
+    app: draughtsman-operator
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: draughtsman-operator
+    spec:
+      volumes:
+      - name: configmap
+        configMap:
+          name: draughtsman-operator
+      - name: secret
+        secret:
+          secretName: draughtsman-operator
+      containers:
+      - name: draughtsman-operator
+        image: quay.io/giantswarm/draughtsman-operator:[[ .SHA ]]
+        args:
+        - "daemon"
+        - "--config.dirs=/var/run/draughtsman-operator/configmap/"
+        - "--config.dirs=/var/run/draughtsman-operator/secret/"
+        - "--config.files=config"
+        - "--config.files=secret"
+        volumeMounts:
+        - name: configmap
+          mountPath: /var/run/draughtsman-operator/configmap/
+          readOnly: true
+        - name: secret
+          mountPath: /var/run/draughtsman-operator/secret/
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          timeoutSeconds: 1
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          timeoutSeconds: 1
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 100m
+            memory: 100Mi
+      imagePullSecrets:
+      - name: draughtsman-operator-pull-secret
