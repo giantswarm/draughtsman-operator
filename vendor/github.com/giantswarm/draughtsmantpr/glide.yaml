@@ -1,0 +1,4 @@
+package: github.com/giantswarm/draughtsmantpr
+import:
+- package: github.com/giantswarm/operatorkit
+  version: master
