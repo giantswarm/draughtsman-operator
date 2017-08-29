@@ -6,17 +6,22 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cenk/backoff"
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/client/k8s"
 	"github.com/giantswarm/operatorkit/framework"
+	"github.com/giantswarm/operatorkit/framework/logresource"
+	"github.com/giantswarm/operatorkit/framework/metricsresource"
+	"github.com/giantswarm/operatorkit/framework/retryresource"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
 	"github.com/giantswarm/draughtsman-operator/service/operator"
+	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
 
 // Config represents the configuration used to create a new service.
@@ -99,6 +104,54 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var projectResource *project.Resource
+	{
+		operatorConfig := project.DefaultConfig()
+
+		operatorConfig.Logger = config.Logger
+
+		projectResource, err = project.New(operatorConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
+	// We create the list of resources and wrap each resource around some common
+	// resources like metrics and retry resources.
+	//
+	// NOTE that the retry resources wrap the underlying resources first. The
+	// wrapped resources are then wrapped around the metrics resource. That way
+	// the metrics also consider execution times and execution attempts including
+	// retries.
+	var resources []framework.Resource
+	{
+		resources = []framework.Resource{
+			projectResource,
+		}
+
+		logWrapConfig := logresource.DefaultWrapConfig()
+		logWrapConfig.Logger = config.Logger
+		resources, err = logresource.Wrap(resources, logWrapConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
+		retryWrapConfig := retryresource.DefaultWrapConfig()
+		retryWrapConfig.BackOffFactory = func() backoff.BackOff { return backoff.NewExponentialBackOff() }
+		retryWrapConfig.Logger = config.Logger
+		resources, err = retryresource.Wrap(resources, retryWrapConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
+		metricsWrapConfig := metricsresource.DefaultWrapConfig()
+		metricsWrapConfig.Namespace = config.Name
+		resources, err = metricsresource.Wrap(resources, metricsWrapConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
 	var healthzService *healthz.Service
 	{
 		healthzConfig := healthz.DefaultConfig()
@@ -119,8 +172,7 @@ func New(config Config) (*Service, error) {
 		operatorConfig.K8sClient = k8sClient
 		operatorConfig.Logger = config.Logger
 		operatorConfig.OperatorFramework = operatorFramework
-		// TODO added resources in a separate PR.
-		operatorConfig.Resources = nil
+		operatorConfig.Resources = resources
 		operatorService, err = operator.New(operatorConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
