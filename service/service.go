@@ -4,6 +4,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/cenk/backoff"
@@ -15,10 +16,13 @@ import (
 	"github.com/giantswarm/operatorkit/framework/logresource"
 	"github.com/giantswarm/operatorkit/framework/metricsresource"
 	"github.com/giantswarm/operatorkit/framework/retryresource"
+	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
+	"github.com/giantswarm/draughtsman-operator/service/configurer"
+	configurerspec "github.com/giantswarm/draughtsman-operator/service/configurer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
 	"github.com/giantswarm/draughtsman-operator/service/operator"
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
@@ -92,6 +96,11 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var osFileSystem afero.Fs
+	{
+		osFileSystem = afero.NewOsFs()
+	}
+
 	var operatorFramework *framework.Framework
 	{
 		frameworkConfig := framework.DefaultConfig()
@@ -104,13 +113,42 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var configurerServices []configurerspec.Configurer
+	types := strings.Split(config.Viper.GetString(config.Flag.Service.Configurer.Types), ",")
+	for _, t := range types {
+		configurerConfig := configurer.DefaultConfig()
+
+		configurerConfig.FileSystem = osFileSystem
+		configurerConfig.K8sClient = k8sClient
+		configurerConfig.Logger = config.Logger
+
+		configurerConfig.Flag = config.Flag
+		configurerConfig.Type = configurerspec.ConfigurerType(t)
+		configurerConfig.Viper = config.Viper
+
+		configurerService, err := configurer.New(configurerConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
+		configurerServices = append(configurerServices, configurerService)
+	}
+
 	var projectResource *project.Resource
 	{
-		operatorConfig := project.DefaultConfig()
+		projectConfig := project.DefaultConfig()
 
-		operatorConfig.Logger = config.Logger
+		projectConfig.Configurers = configurerServices
+		projectConfig.FileSystem = osFileSystem
+		projectConfig.Logger = config.Logger
 
-		projectResource, err = project.New(operatorConfig)
+		projectConfig.HelmBinaryPath = config.Viper.GetString(config.Flag.Service.Helm.HelmBinaryPath)
+		projectConfig.Organisation = config.Viper.GetString(config.Flag.Service.Helm.Organisation)
+		projectConfig.Password = config.Viper.GetString(config.Flag.Service.Helm.Password)
+		projectConfig.Registry = config.Viper.GetString(config.Flag.Service.Helm.Registry)
+		projectConfig.Username = config.Viper.GetString(config.Flag.Service.Helm.Username)
+
+		projectResource, err = project.New(projectConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
