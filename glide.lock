@@ -1,5 +1,5 @@
 hash: 50b584860e7987469d0a6023189f553b8906fd7717baa7af1f2601d146756827
-updated: 2017-08-29T14:02:12.155560033+02:00
+updated: 2017-08-30T18:11:45.844250031+02:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -65,7 +65,7 @@ imports:
   subpackages:
   - memory
 - name: github.com/giantswarm/operatorkit
-  version: 8b0b3f255f8411bb7ea5abc0f906452fe85eb985
+  version: 911fad9e4a4fb20e05d16c6e967f7da50fdc3cfc
   subpackages:
   - client/k8s
   - framework
@@ -144,7 +144,7 @@ imports:
 - name: github.com/pelletier/go-toml
   version: 9c1b4e331f1e3d98e72600677699fbe212cd6d16
 - name: github.com/prometheus/client_golang
-  version: 140d476395e553172b6a3dac9866c201c701df10
+  version: 61d8c3f402672e3f5ead16d09720c90cc4b868af
   subpackages:
   - prometheus
   - prometheus/promhttp
@@ -190,6 +190,7 @@ imports:
   version: e90d6d0afc4c315a0d87a568ae68577cc15149a0
   subpackages:
   - context
+  - context/ctxhttp
   - http2
   - http2/hpack
   - idna
