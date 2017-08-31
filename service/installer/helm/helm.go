@@ -52,7 +52,7 @@ func DefaultConfig() Config {
 	return Config{
 		// Dependencies.
 		Configurers: nil,
-		FileSystem:  afero.NewMemMapFs(),
+		FileSystem:  nil,
 		Logger:      nil,
 
 		// Settings.
