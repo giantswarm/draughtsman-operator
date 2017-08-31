@@ -13,7 +13,11 @@ type Installer interface {
 	// Install takes a Project, and installs the referenced chart. If an error
 	// occurs, the returned error will be non-nil.
 	Install(project Project) error
-	// List takes a list of projects and returns a list of installed charts in
-	// form of a list of Project items that match the given list.
-	List(projects []Project) ([]Project, error)
+	// List returns a list of installed charts in form of a list of Project items
+	// that match the given list.
+	//
+	// NOTE that the shas/refs of projects returned here are eventually
+	// incomplete. This is because of certain helm limitations when listing
+	// charts.
+	List() ([]Project, error)
 }

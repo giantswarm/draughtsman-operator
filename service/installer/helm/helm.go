@@ -215,29 +215,18 @@ func (i *Installer) Install(project spec.Project) error {
 	return nil
 }
 
-func (i *Installer) List(projects []spec.Project) ([]spec.Project, error) {
+func (i *Installer) List() ([]spec.Project, error) {
 	b, err := i.runHelmCommand("list", "list")
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	listProjects, err := bytesToProjects(b)
+	projects, err := bytesToProjects(b)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	var filteredProjects []spec.Project
-
-	for _, p := range listProjects {
-		foundProject, err := getProjectFromList(projects, p)
-		if IsNotFound(err) {
-			continue
-		}
-
-		filteredProjects = append(filteredProjects, foundProject)
-	}
-
-	return filteredProjects, nil
+	return projects, nil
 }
 
 // login logs the configured user into the configured registry.
@@ -342,14 +331,4 @@ func bytesToProjects(b []byte) ([]spec.Project, error) {
 	}
 
 	return list, nil
-}
-
-func getProjectFromList(list []spec.Project, p spec.Project) (spec.Project, error) {
-	for _, l := range list {
-		if l.Name == p.Name && strings.HasPrefix(l.Ref, p.Ref) {
-			return l, nil
-		}
-	}
-
-	return spec.Project{}, microerror.Maskf(notFoundError, p.Name)
 }

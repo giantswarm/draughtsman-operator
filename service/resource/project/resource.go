@@ -1,6 +1,8 @@
 package project
 
 import (
+	"strings"
+
 	"github.com/giantswarm/draughtsmantpr"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
@@ -68,20 +70,10 @@ func New(config Config) (*Resource, error) {
 }
 
 func (r *Resource) GetCurrentState(obj interface{}) (interface{}, error) {
-	customObject, err := toCustomObject(obj)
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-
 	var currentProjects []Project
 
 	{
-		var installerProjects []installerspec.Project
-		for _, p := range customObject.Spec.Projects {
-			installerProjects = append(installerProjects, installerspec.Project{Name: p.Name, Ref: p.Ref})
-		}
-
-		list, err := r.installer.List(installerProjects)
+		list, err := r.installer.List()
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -171,7 +163,10 @@ func (r *Resource) GetUpdateState(obj, currentState, desiredState interface{}) (
 			return nil, nil, nil, microerror.Mask(err)
 		}
 
-		if currentProject.Ref != desiredProject.Ref {
+		// NOTE that we need to deal with eventually incomplete sha/ref information
+		// given in the list of current projects. This is due to certain helm
+		// limitations.
+		if !strings.HasPrefix(desiredProject.Ref, currentProject.Ref) {
 			projectsToUpdate = append(projectsToUpdate, desiredProject)
 		}
 	}
