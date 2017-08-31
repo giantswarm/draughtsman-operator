@@ -3,6 +3,7 @@ package operator
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/giantswarm/draughtsmantpr"
 	"github.com/giantswarm/microerror"
@@ -12,6 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+)
+
+const (
+	ResyncPeriod = 10 * time.Second
 )
 
 // Config represents the configuration used to create a new service.
@@ -74,6 +79,7 @@ func New(config Config) (*Service, error) {
 
 		tprConfig.Description = draughtsmantpr.Description
 		tprConfig.Name = draughtsmantpr.Name
+		tprConfig.ResyncPeriod = ResyncPeriod
 		tprConfig.Version = draughtsmantpr.VersionV1
 
 		draughtsmanTPR, err = tpr.New(tprConfig)
