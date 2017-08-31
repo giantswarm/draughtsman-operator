@@ -304,7 +304,7 @@ func (i *Installer) versionedChartName(project spec.Project) string {
 
 // bytesToProjects parses projects from the given bytes.
 //
-// NOTE that the retruned list of projects does eventually contain incomplete
+// NOTE that the returned list of projects does eventually contain incomplete
 // ref/sha information. This is because of certain helm limitations when listing
 // charts.
 func bytesToProjects(b []byte) ([]spec.Project, error) {
