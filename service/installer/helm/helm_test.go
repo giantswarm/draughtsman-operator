@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/giantswarm/draughtsman-operator/service/installer/spec"
@@ -74,6 +75,238 @@ func Test_Installer_Helm_tarballName(t *testing.T) {
 				"%v\nexpected: %#v\nreturned: %#v\n",
 				index, test.expectedTarballName, returnedTarballName,
 			)
+		}
+	}
+}
+
+func Test_Installer_Helm_bytesToProjects(t *testing.T) {
+	testCases := []struct {
+		Bytes            []byte
+		ExpectedProjects []spec.Project
+	}{
+		{
+			Bytes: []byte(`
+NAME               	REVISION	UPDATED                 	STATUS  	CHART                                                       	NAMESPACE
+api                	4       	Wed Aug 30 19:32:47 2017	DEPLOYED	api-chart-1.0.0-8df9e731276736f91106765073cbcbc9ac45248b    	default
+cluster-service    	1       	Wed Aug 30 19:32:52 2017	DEPLOYED	cluster-service-chart-1.0.0-1de4cedf870ba17b46d775070160a...	default
+etcd-operator-0-1-0	1       	Wed Aug 30 19:27:55 2017	DEPLOYED	etcd-operator-0.4.3                                         	default
+			`),
+			ExpectedProjects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160a",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "",
+				},
+			},
+		},
+	}
+
+	for i, tc := range testCases {
+		projects, err := bytesToProjects(tc.Bytes)
+		if err != nil {
+			t.Fatalf("test %d expected %#v got %#v", i+1, nil, err)
+		}
+
+		if !reflect.DeepEqual(tc.ExpectedProjects, projects) {
+			t.Fatalf("test %d expected %#v got %#v", i+1, tc.ExpectedProjects, projects)
+		}
+	}
+}
+
+func Test_Installer_Helm_containsProject(t *testing.T) {
+	testCases := []struct {
+		Projects []spec.Project
+		Project  spec.Project
+		Expected bool
+	}{
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
+			Expected: true,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcb",
+			},
+			Expected: true,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api",
+				Ref:  "8df9e7312767",
+			},
+			Expected: true,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api",
+				Ref:  "8df9",
+			},
+			Expected: true,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api-service",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
+			Expected: false,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api-service",
+				Ref:  "8df9e731276736f91106765073cbcb",
+			},
+			Expected: false,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api-service",
+				Ref:  "8df9e7312767",
+			},
+			Expected: false,
+		},
+
+		{
+			Projects: []spec.Project{
+				{
+					Name: "api",
+					Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+				},
+				{
+					Name: "cluster-service",
+					Ref:  "1de4cedf870ba17b46d775070160abcbc9ac45248b",
+				},
+				{
+					Name: "etcd-operator-0-1-0",
+					Ref:  "xde5cedfg777a17846d77h088n60a0cbc9ac4594fb",
+				},
+			},
+			Project: spec.Project{
+				Name: "api-service",
+				Ref:  "8df9",
+			},
+			Expected: false,
+		},
+	}
+
+	for i, tc := range testCases {
+		contains := containsProject(tc.Projects, tc.Project)
+		if tc.Expected != contains {
+			t.Fatalf("test %d expected %#v got %#v", i+1, tc.Expected, contains)
 		}
 	}
 }

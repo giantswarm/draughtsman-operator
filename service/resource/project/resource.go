@@ -68,20 +68,17 @@ func (r *Resource) GetCurrentState(obj interface{}) (interface{}, error) {
 	var currentProjects []Project
 
 	{
-		list, err := r.installer.List()
+		var installerProjects []installerspec.Project
+		for _, p := range customObject.Spec.Projects {
+			installerProjects = append(installerProjects, installerspec.Project{Name: p.Name, Ref: p.Ref})
+		}
+
+		list, err := r.installer.List(installerProjects)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		projects := installerProjectsToProjects(list)
-		for _, p := range customObject.Spec.Projects {
-			if existsProjectByName(projects, p.Name) {
-				project, err := getProjectByName(projects, p.Name)
-				if err != nil {
-					return nil, microerror.Mask(err)
-				}
-				currentProjects = append(currentProjects, project)
-			}
-		}
+
+		currentProjects = installerProjectsToProjects(list)
 	}
 
 	return currentProjects, nil
@@ -184,7 +181,7 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 		return microerror.Mask(err)
 	}
 
-	if projectsToCreate != nil {
+	if len(projectsToCreate) != 0 {
 		r.logger.Log("debug", "creating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToCreate {
@@ -213,7 +210,7 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 		return microerror.Mask(err)
 	}
 
-	if projectsToUpdate != nil {
+	if len(projectsToUpdate) != 0 {
 		r.logger.Log("debug", "updating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToUpdate {
