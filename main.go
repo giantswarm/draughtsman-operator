@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/giantswarm/draughtsman-operator/flag"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/microkit/command"
 	microserver "github.com/giantswarm/microkit/server"
@@ -14,8 +13,12 @@ import (
 	"github.com/giantswarm/microstorage/memory"
 	"github.com/spf13/viper"
 
+	"github.com/giantswarm/draughtsman-operator/flag"
 	"github.com/giantswarm/draughtsman-operator/server"
 	"github.com/giantswarm/draughtsman-operator/service"
+	"github.com/giantswarm/draughtsman-operator/service/configurer/configmap"
+	"github.com/giantswarm/draughtsman-operator/service/configurer/secret"
+	"github.com/giantswarm/draughtsman-operator/service/installer/helm"
 )
 
 var (
@@ -137,6 +140,22 @@ func mainWithError() error {
 	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CAFile, "", "Certificate authority file path to use to authenticate with Kubernetes.")
 	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CrtFile, "", "Certificate file path to use to authenticate with Kubernetes.")
 	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.KeyFile, "", "Key file path to use to authenticate with Kubernetes.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.HelmBinaryPath, "/bin/helm", "Path to Helm binary. Needs CNR registry plugin installed.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Organisation, "", "Organisation of Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Password, "", "Password for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Registry, "quay.io", "URL for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Username, "", "Username for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Type, string(helm.HelmInstallerType), "Which installer to use for installation management.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Key, "values", "Key in configmap holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Name, "draughtsman-values", "Name of configmap holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Namespace, "draughtsman", "Namespace of configmap holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.File.Path, "", "Path to values file.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Key, "values", "Key in secret holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Name, "draughtsman-values-secret", "Name of secret holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Namespace, "draughtsman", "Namespace of secret holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.Types, string(configmap.ConfigurerType)+","+string(secret.ConfigurerType), "Comma separated list of configurers to use for configuration management.")
 
 	newCommand.CobraCommand().Execute()
 

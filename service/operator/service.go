@@ -7,7 +7,6 @@ import (
 	"github.com/giantswarm/draughtsmantpr"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/client/k8s"
 	"github.com/giantswarm/operatorkit/framework"
 	"github.com/giantswarm/operatorkit/tpr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,31 +26,12 @@ type Config struct {
 // DefaultConfig provides a default configuration to create a new service by
 // best effort.
 func DefaultConfig() Config {
-	var err error
-
-	var k8sClient kubernetes.Interface
-	{
-		config := k8s.DefaultConfig()
-		k8sClient, err = k8s.NewClient(config)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	var newLogger micrologger.Logger
-	{
-		config := micrologger.DefaultConfig()
-		newLogger, err = micrologger.New(config)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	return Config{
 		// Dependencies.
-		K8sClient: k8sClient,
-		Logger:    newLogger,
-		Resources: nil,
+		K8sClient:         nil,
+		Logger:            nil,
+		OperatorFramework: nil,
+		Resources:         nil,
 	}
 }
 

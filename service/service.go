@@ -15,11 +15,14 @@ import (
 	"github.com/giantswarm/operatorkit/framework/logresource"
 	"github.com/giantswarm/operatorkit/framework/metricsresource"
 	"github.com/giantswarm/operatorkit/framework/retryresource"
+	"github.com/spf13/afero"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
+	"github.com/giantswarm/draughtsman-operator/service/installer"
+	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/operator"
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
@@ -92,6 +95,11 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var osFileSystem afero.Fs
+	{
+		osFileSystem = afero.NewOsFs()
+	}
+
 	var operatorFramework *framework.Framework
 	{
 		frameworkConfig := framework.DefaultConfig()
@@ -104,13 +112,32 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var installerService installerspec.Installer
+	{
+		installerConfig := installer.DefaultConfig()
+
+		installerConfig.FileSystem = osFileSystem
+		installerConfig.K8sClient = k8sClient
+		installerConfig.Logger = config.Logger
+
+		installerConfig.Flag = config.Flag
+		installerConfig.Type = installerspec.InstallerType(config.Viper.GetString(config.Flag.Service.Installer.Type))
+		installerConfig.Viper = config.Viper
+
+		installerService, err = installer.New(installerConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
 	var projectResource *project.Resource
 	{
-		operatorConfig := project.DefaultConfig()
+		projectConfig := project.DefaultConfig()
 
-		operatorConfig.Logger = config.Logger
+		projectConfig.Installer = installerService
+		projectConfig.Logger = config.Logger
 
-		projectResource, err = project.New(operatorConfig)
+		projectResource, err = project.New(projectConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}

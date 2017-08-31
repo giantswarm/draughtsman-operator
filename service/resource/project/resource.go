@@ -1,12 +1,12 @@
 package project
 
 import (
-	"fmt"
-
 	"github.com/giantswarm/draughtsmantpr"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/framework"
+
+	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
 )
 
 const (
@@ -17,7 +17,8 @@ const (
 // Config represents the configuration used to create a new project resource.
 type Config struct {
 	// Dependencies.
-	Logger micrologger.Logger
+	Installer installerspec.Installer
+	Logger    micrologger.Logger
 }
 
 // DefaultConfig provides a default configuration to create a new project
@@ -25,31 +26,37 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		// Dependencies.
-		Logger: nil,
+		Installer: nil,
+		Logger:    nil,
 	}
 }
 
 // Resource implements the project resource.
 type Resource struct {
 	// Dependencies.
-	logger micrologger.Logger
+	installer installerspec.Installer
+	logger    micrologger.Logger
 }
 
 // New creates a new configured project resource.
 func New(config Config) (*Resource, error) {
 	// Dependencies.
+	if config.Installer == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.Installer must not be empty")
+	}
 	if config.Logger == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
 	}
 
-	newService := &Resource{
+	newResource := &Resource{
 		// Dependencies.
+		installer: config.Installer,
 		logger: config.Logger.With(
 			"resource", Name,
 		),
 	}
 
-	return newService, nil
+	return newResource, nil
 }
 
 func (r *Resource) GetCurrentState(obj interface{}) (interface{}, error) {
@@ -58,13 +65,23 @@ func (r *Resource) GetCurrentState(obj interface{}) (interface{}, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "get current state")
+	var currentProjects []Project
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+	{
+		var installerProjects []installerspec.Project
+		for _, p := range customObject.Spec.Projects {
+			installerProjects = append(installerProjects, installerspec.Project{Name: p.Name, Ref: p.Ref})
+		}
 
-	r.logger.Log("debug", fmt.Sprintf("found k8s state: %#v", nil))
+		list, err := r.installer.List(installerProjects)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
 
-	return nil, nil
+		currentProjects = installerProjectsToProjects(list)
+	}
+
+	return currentProjects, nil
 }
 
 func (r *Resource) GetDesiredState(obj interface{}) (interface{}, error) {
@@ -73,58 +90,85 @@ func (r *Resource) GetDesiredState(obj interface{}) (interface{}, error) {
 		return nil, microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "get desired state")
+	var desiredProjects []Project
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+	for _, p := range customObject.Spec.Projects {
+		desiredProjects = append(desiredProjects, Project{Name: p.Name, Ref: p.Ref})
+	}
 
-	r.logger.Log("debug", fmt.Sprintf("found desired state: %#v", nil))
-
-	return nil, nil
+	return desiredProjects, nil
 }
 
 func (r *Resource) GetCreateState(obj, currentState, desiredState interface{}) (interface{}, error) {
-	customObject, err := toCustomObject(obj)
+	currentProjects, err := toProjects(currentState)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	desiredProjects, err := toProjects(desiredState)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "get create state")
+	var projectsToCreate []Project
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+	for _, desiredProject := range desiredProjects {
+		if !existsProjectByName(currentProjects, desiredProject.Name) {
+			projectsToCreate = append(projectsToCreate, desiredProject)
+		}
+	}
 
-	r.logger.Log("debug", fmt.Sprintf("found create state: %#v", nil))
-
-	return nil, nil
+	return projectsToCreate, nil
 }
 
 func (r *Resource) GetDeleteState(obj, currentState, desiredState interface{}) (interface{}, error) {
-	customObject, err := toCustomObject(obj)
+	currentProjects, err := toProjects(currentState)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	desiredProjects, err := toProjects(desiredState)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "get delete state")
+	var projectsToDelete []Project
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+	for _, currentProject := range currentProjects {
+		if existsProjectByName(desiredProjects, currentProject.Name) {
+			projectsToDelete = append(projectsToDelete, currentProject)
+		}
+	}
 
-	r.logger.Log("debug", fmt.Sprintf("found delete state: %#v", nil))
-
-	return nil, nil
+	return projectsToDelete, nil
 }
 
 func (r *Resource) GetUpdateState(obj, currentState, desiredState interface{}) (interface{}, interface{}, interface{}, error) {
-	customObject, err := toCustomObject(obj)
+	currentProjects, err := toProjects(currentState)
+	if err != nil {
+		return nil, nil, nil, microerror.Mask(err)
+	}
+	desiredProjects, err := toProjects(desiredState)
 	if err != nil {
 		return nil, nil, nil, microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "get delete state")
+	var projectsToUpdate []Project
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+	for _, desiredProject := range desiredProjects {
+		if !existsProjectByName(currentProjects, desiredProject.Name) {
+			continue
+		}
 
-	r.logger.Log("debug", fmt.Sprintf("found delete state: %#v", nil))
+		currentProject, err := getProjectByName(currentProjects, desiredProject.Name)
+		if err != nil {
+			return nil, nil, nil, microerror.Mask(err)
+		}
 
-	return nil, nil, nil, nil
+		if currentProject.Ref != desiredProject.Ref {
+			projectsToUpdate = append(projectsToUpdate, desiredProject)
+		}
+	}
+
+	return []Project{}, []Project{}, projectsToUpdate, nil
 }
 
 func (r *Resource) Name() string {
@@ -132,52 +176,90 @@ func (r *Resource) Name() string {
 }
 
 func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
-	customObject, err := toCustomObject(obj)
+	projectsToCreate, err := toProjects(createState)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "process create state")
+	if len(projectsToCreate) != 0 {
+		r.logger.Log("debug", "creating projects in the Kubernetes cluster")
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+		for _, p := range projectsToCreate {
+			err := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
+			if err != nil {
+				return microerror.Mask(err)
+			}
+		}
 
-	r.logger.Log("debug", "processed create state")
+		r.logger.Log("debug", "created projects in the Kubernetes cluster")
+	} else {
+		r.logger.Log("debug", "the projects are already created in the Kubernetes cluster")
+	}
 
 	return nil
 }
 
 func (r *Resource) ProcessDeleteState(obj, deleteState interface{}) error {
-	customObject, err := toCustomObject(obj)
-	if err != nil {
-		return microerror.Mask(err)
-	}
-
-	r.logger.Log("debug", "process delete state")
-
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
-
-	r.logger.Log("debug", "processed delete state")
-
+	r.logger.Log("TODO", "implement ProcessDeleteState")
 	return nil
 }
 
 func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
-	customObject, err := toCustomObject(obj)
+	projectsToUpdate, err := toProjects(updateState)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
-	r.logger.Log("debug", "process update state")
+	if len(projectsToUpdate) != 0 {
+		r.logger.Log("debug", "updating projects in the Kubernetes cluster")
 
-	r.logger.Log("TODO", fmt.Sprintf("implement logic based on received custom object: %#v", customObject))
+		for _, p := range projectsToUpdate {
+			err := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
+			if err != nil {
+				return microerror.Mask(err)
+			}
+		}
 
-	r.logger.Log("debug", "processed update state")
+		r.logger.Log("debug", "updated projects in the Kubernetes cluster")
+	} else {
+		r.logger.Log("debug", "the projects are already up to date in the Kubernetes cluster")
+	}
 
 	return nil
 }
 
 func (r *Resource) Underlying() framework.Resource {
 	return r
+}
+
+func existsProjectByName(list []Project, name string) bool {
+	for _, l := range list {
+		if l.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getProjectByName(list []Project, name string) (Project, error) {
+	for _, l := range list {
+		if l.Name == name {
+			return l, nil
+		}
+	}
+
+	return Project{}, microerror.Maskf(notFoundError, name)
+}
+
+func installerProjectsToProjects(installerList []installerspec.Project) []Project {
+	var list []Project
+
+	for _, p := range installerList {
+		list = append(list, Project{Name: p.Name, Ref: p.Ref})
+	}
+
+	return list
 }
 
 func toCustomObject(v interface{}) (draughtsmantpr.CustomObject, error) {
@@ -188,4 +270,13 @@ func toCustomObject(v interface{}) (draughtsmantpr.CustomObject, error) {
 	customObject := *customObjectPointer
 
 	return customObject, nil
+}
+
+func toProjects(v interface{}) ([]Project, error) {
+	projects, ok := v.([]Project)
+	if !ok {
+		return nil, microerror.Maskf(wrongTypeError, "expected '%T', got '%T'", []Project{}, v)
+	}
+
+	return projects, nil
 }
