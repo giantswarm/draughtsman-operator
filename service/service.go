@@ -4,6 +4,7 @@ package service
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 
 	"github.com/cenk/backoff"
@@ -20,6 +21,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
+	"github.com/giantswarm/draughtsman-operator/service/eventer"
+	eventerspec "github.com/giantswarm/draughtsman-operator/service/eventer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
 	"github.com/giantswarm/draughtsman-operator/service/installer"
 	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
@@ -97,6 +100,18 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var httpClient *http.Client
+	{
+		timeout := config.Viper.GetDuration(config.Flag.Service.HTTPClient.Timeout)
+		if timeout.Seconds() == 0 {
+			return nil, microerror.Maskf(invalidConfigError, "http client timeout must be greater than zero")
+		}
+
+		httpClient = &http.Client{
+			Timeout: timeout,
+		}
+	}
+
 	var osFileSystem afero.Fs
 	{
 		osFileSystem = afero.NewOsFs()
@@ -149,10 +164,27 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var eventerService eventerspec.Eventer
+	{
+		eventerConfig := eventer.DefaultConfig()
+
+		eventerConfig.HTTPClient = httpClient
+		eventerConfig.Logger = config.Logger
+
+		eventerConfig.Flag = config.Flag
+		eventerConfig.Viper = config.Viper
+
+		eventerService, err = eventer.New(eventerConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
 	var projectResource *project.Resource
 	{
 		projectConfig := project.DefaultConfig()
 
+		projectConfig.Eventer = eventerService
 		projectConfig.Installer = installerService
 		projectConfig.Logger = config.Logger
 		projectConfig.Notifier = notifierService

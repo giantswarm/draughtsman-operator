@@ -8,6 +8,7 @@ import (
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/framework"
 
+	eventerspec "github.com/giantswarm/draughtsman-operator/service/eventer/spec"
 	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
 	notifierspec "github.com/giantswarm/draughtsman-operator/service/notifier/spec"
 )
@@ -20,6 +21,7 @@ const (
 // Config represents the configuration used to create a new project resource.
 type Config struct {
 	// Dependencies.
+	Eventer   eventerspec.Eventer
 	Installer installerspec.Installer
 	Logger    micrologger.Logger
 	Notifier  notifierspec.Notifier
@@ -30,6 +32,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		// Dependencies.
+		Eventer:   nil,
 		Installer: nil,
 		Logger:    nil,
 		Notifier:  nil,
@@ -39,6 +42,7 @@ func DefaultConfig() Config {
 // Resource implements the project resource.
 type Resource struct {
 	// Dependencies.
+	eventer   eventerspec.Eventer
 	installer installerspec.Installer
 	logger    micrologger.Logger
 	notifier  notifierspec.Notifier
@@ -47,6 +51,9 @@ type Resource struct {
 // New creates a new configured project resource.
 func New(config Config) (*Resource, error) {
 	// Dependencies.
+	if config.Eventer == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.Eventer must not be empty")
+	}
 	if config.Installer == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Installer must not be empty")
 	}
@@ -59,6 +66,7 @@ func New(config Config) (*Resource, error) {
 
 	newResource := &Resource{
 		// Dependencies.
+		eventer:   config.Eventer,
 		installer: config.Installer,
 		logger: config.Logger.With(
 			"resource", Name,
@@ -190,6 +198,10 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 		for _, p := range projectsToCreate {
 			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
 			if instErr != nil {
+				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+				if evenErr != nil {
+					return microerror.Mask(evenErr)
+				}
 				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
 				if notiErr != nil {
 					return microerror.Mask(notiErr)
@@ -198,6 +210,10 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 				return microerror.Mask(instErr)
 			}
 
+			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+			if evenErr != nil {
+				return microerror.Mask(evenErr)
+			}
 			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
 			if notiErr != nil {
 				return microerror.Mask(notiErr)
@@ -229,6 +245,10 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 		for _, p := range projectsToUpdate {
 			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
 			if instErr != nil {
+				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+				if evenErr != nil {
+					return microerror.Mask(evenErr)
+				}
 				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
 				if notiErr != nil {
 					return microerror.Mask(notiErr)
@@ -237,6 +257,10 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 				return microerror.Mask(instErr)
 			}
 
+			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+			if evenErr != nil {
+				return microerror.Mask(evenErr)
+			}
 			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
 			if notiErr != nil {
 				return microerror.Mask(notiErr)
