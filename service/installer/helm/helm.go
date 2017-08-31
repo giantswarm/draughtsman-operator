@@ -176,7 +176,7 @@ func (i *Installer) Install(project spec.Project) error {
 		i.logger.Log("debug", "downloaded chart", "tarball", tarballPath)
 	}
 
-	// The intaller accepts multiple configurers during initialization. Here we
+	// The installer accepts multiple configurers during initialization. Here we
 	// iterate over all of them to get all the values they provide. For each
 	// values file we have to create a file in the tmp dir we created above.
 	var valuesFilesArgs []string
