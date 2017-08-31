@@ -1,19 +1,26 @@
 package helm
 
 import (
-	"github.com/juju/errgo"
+	"github.com/giantswarm/microerror"
 )
 
-var invalidConfigError = errgo.New("invalid config")
-
-// IsInvalidConfig asserts invalidConfigError.
-func IsInvalidConfig(err error) bool {
-	return errgo.Cause(err) == invalidConfigError
-}
-
-var helmError = errgo.New("helm error")
+var helmError = microerror.New("helm error")
 
 // IsHelm asserts helmError.
 func IsHelm(err error) bool {
-	return errgo.Cause(err) == helmError
+	return microerror.Cause(err) == helmError
+}
+
+var invalidConfigError = microerror.New("invalid config")
+
+// IsInvalidConfig asserts invalidConfigError.
+func IsInvalidConfig(err error) bool {
+	return microerror.Cause(err) == invalidConfigError
+}
+
+var notFoundError = microerror.New("not found")
+
+// IsNotFound asserts notFoundError.
+func IsNotFound(err error) bool {
+	return microerror.Cause(err) == notFoundError
 }
