@@ -120,11 +120,12 @@ etcd-operator-0-1-0	1       	Wed Aug 30 19:27:55 2017	DEPLOYED	etcd-operator-0.4
 	}
 }
 
-func Test_Installer_Helm_containsProject(t *testing.T) {
+func Test_Installer_Helm_getProjectFromList(t *testing.T) {
 	testCases := []struct {
-		Projects []spec.Project
-		Project  spec.Project
-		Expected bool
+		Projects     []spec.Project
+		Project      spec.Project
+		ErrorMatcher func(error) bool
+		Expected     spec.Project
 	}{
 		{
 			Projects: []spec.Project{
@@ -145,7 +146,11 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api",
 				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
 			},
-			Expected: true,
+			ErrorMatcher: nil,
+			Expected: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
 		},
 
 		{
@@ -167,7 +172,11 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api",
 				Ref:  "8df9e731276736f91106765073cbcb",
 			},
-			Expected: true,
+			ErrorMatcher: nil,
+			Expected: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
 		},
 
 		{
@@ -189,7 +198,11 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api",
 				Ref:  "8df9e7312767",
 			},
-			Expected: true,
+			ErrorMatcher: nil,
+			Expected: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
 		},
 
 		{
@@ -211,7 +224,11 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api",
 				Ref:  "8df9",
 			},
-			Expected: true,
+			ErrorMatcher: nil,
+			Expected: spec.Project{
+				Name: "api",
+				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
+			},
 		},
 
 		{
@@ -233,7 +250,8 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api-service",
 				Ref:  "8df9e731276736f91106765073cbcbc9ac45248b",
 			},
-			Expected: false,
+			ErrorMatcher: IsNotFound,
+			Expected:     spec.Project{},
 		},
 
 		{
@@ -255,7 +273,8 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api-service",
 				Ref:  "8df9e731276736f91106765073cbcb",
 			},
-			Expected: false,
+			ErrorMatcher: IsNotFound,
+			Expected:     spec.Project{},
 		},
 
 		{
@@ -277,7 +296,8 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api-service",
 				Ref:  "8df9e7312767",
 			},
-			Expected: false,
+			ErrorMatcher: IsNotFound,
+			Expected:     spec.Project{},
 		},
 
 		{
@@ -299,14 +319,24 @@ func Test_Installer_Helm_containsProject(t *testing.T) {
 				Name: "api-service",
 				Ref:  "8df9",
 			},
-			Expected: false,
+			ErrorMatcher: IsNotFound,
+			Expected:     spec.Project{},
 		},
 	}
 
 	for i, tc := range testCases {
-		contains := containsProject(tc.Projects, tc.Project)
-		if tc.Expected != contains {
-			t.Fatalf("test %d expected %#v got %#v", i+1, tc.Expected, contains)
+		foundProject, err := getProjectFromList(tc.Projects, tc.Project)
+		if err != nil {
+			if tc.ErrorMatcher != nil {
+				if !tc.ErrorMatcher(err) {
+					t.Fatalf("test %d expected %#v got %#v", i+1, true, false)
+				}
+			} else {
+				t.Fatalf("test %d expected %#v got %#v", i+1, nil, err)
+			}
+		}
+		if !reflect.DeepEqual(tc.Expected, foundProject) {
+			t.Fatalf("test %d expected %#v got %#v", i+1, tc.Expected, foundProject)
 		}
 	}
 }
