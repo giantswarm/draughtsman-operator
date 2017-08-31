@@ -19,6 +19,7 @@ import (
 	"github.com/giantswarm/draughtsman-operator/service/configurer/configmap"
 	"github.com/giantswarm/draughtsman-operator/service/configurer/secret"
 	"github.com/giantswarm/draughtsman-operator/service/installer/helm"
+	"github.com/giantswarm/draughtsman-operator/service/notifier/slack"
 )
 
 var (
@@ -156,6 +157,12 @@ func mainWithError() error {
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Name, "draughtsman-values-secret", "Name of secret holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Namespace, "draughtsman", "Namespace of secret holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Types, string(configmap.ConfigurerType)+","+string(secret.ConfigurerType), "Comma separated list of configurers to use for configuration management.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Channel, "", "Channel to post Slack notifications to.")
+	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Emoji, ":older_man:", "Emoji to use for Slack notifications.")
+	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Token, "", "Token to post Slack notifications with.")
+	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Username, "draughtsman", "Username to post Slack notifications with.")
+	daemonCommand.PersistentFlags().String(f.Service.Notifier.Type, string(slack.SlackNotifierType), "Which notifier to use for notification management.")
 
 	newCommand.CobraCommand().Execute()
 

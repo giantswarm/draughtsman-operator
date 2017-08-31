@@ -1,4 +1,4 @@
-package installer
+package slack
 
 import "github.com/giantswarm/microerror"
 

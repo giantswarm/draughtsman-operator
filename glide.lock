@@ -1,5 +1,5 @@
-hash: 50b584860e7987469d0a6023189f553b8906fd7717baa7af1f2601d146756827
-updated: 2017-08-30T18:11:45.844250031+02:00
+hash: 99acef13e263b9de9db975848ed04aace9dd2566a12106949fd66dcd76d896a0
+updated: 2017-08-31T14:17:37.185371516+02:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -141,10 +141,12 @@ imports:
   - pbutil
 - name: github.com/mitchellh/mapstructure
   version: d0303fe809921458f417bcf828397a65db30a7e4
+- name: github.com/nlopes/slack
+  version: c86337c0ef2486a15edd804355d9c73d2f2caed1
 - name: github.com/pelletier/go-toml
   version: 9c1b4e331f1e3d98e72600677699fbe212cd6d16
 - name: github.com/prometheus/client_golang
-  version: 61d8c3f402672e3f5ead16d09720c90cc4b868af
+  version: 535f493f5a875ebde111871209251257ef834ad1
   subpackages:
   - prometheus
   - prometheus/promhttp
@@ -153,7 +155,7 @@ imports:
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: 61f87aac8082fa8c3c5655c7608d7478d46ac2ad
+  version: bc8b88226a1210b016e9993b1d75f858c9c8f778
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
@@ -190,11 +192,11 @@ imports:
   version: e90d6d0afc4c315a0d87a568ae68577cc15149a0
   subpackages:
   - context
-  - context/ctxhttp
   - http2
   - http2/hpack
   - idna
   - lex/httplex
+  - websocket
 - name: golang.org/x/sys
   version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
   subpackages:

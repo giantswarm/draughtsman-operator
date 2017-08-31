@@ -12,3 +12,5 @@ import:
   version: master
 - package: github.com/giantswarm/draughtsmantpr
   version: master
+- package: github.com/nlopes/slack
+  version: ^0.1.0

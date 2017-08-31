@@ -23,6 +23,8 @@ import (
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
 	"github.com/giantswarm/draughtsman-operator/service/installer"
 	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
+	"github.com/giantswarm/draughtsman-operator/service/notifier"
+	notifierspec "github.com/giantswarm/draughtsman-operator/service/notifier/spec"
 	"github.com/giantswarm/draughtsman-operator/service/operator"
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
@@ -112,6 +114,23 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var notifierService notifierspec.Notifier
+	{
+		notifierConfig := notifier.DefaultConfig()
+
+		notifierConfig.Logger = config.Logger
+
+		notifierConfig.Flag = config.Flag
+		notifierConfig.Viper = config.Viper
+
+		notifierConfig.Type = notifierspec.NotifierType(config.Viper.GetString(config.Flag.Service.Notifier.Type))
+
+		notifierService, err = notifier.New(notifierConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
 	var installerService installerspec.Installer
 	{
 		installerConfig := installer.DefaultConfig()
@@ -136,6 +155,7 @@ func New(config Config) (*Service, error) {
 
 		projectConfig.Installer = installerService
 		projectConfig.Logger = config.Logger
+		projectConfig.Notifier = notifierService
 
 		projectResource, err = project.New(projectConfig)
 		if err != nil {
