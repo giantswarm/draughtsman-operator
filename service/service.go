@@ -4,7 +4,6 @@ package service
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/cenk/backoff"
@@ -21,9 +20,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
-	"github.com/giantswarm/draughtsman-operator/service/configurer"
-	configurerspec "github.com/giantswarm/draughtsman-operator/service/configurer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/healthz"
+	"github.com/giantswarm/draughtsman-operator/service/installer"
+	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/operator"
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
@@ -113,40 +112,30 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
-	var configurerServices []configurerspec.Configurer
-	types := strings.Split(config.Viper.GetString(config.Flag.Service.Configurer.Types), ",")
-	for _, t := range types {
-		configurerConfig := configurer.DefaultConfig()
+	var installerService installerspec.Installer
+	{
+		installerConfig := installer.DefaultConfig()
 
-		configurerConfig.FileSystem = osFileSystem
-		configurerConfig.K8sClient = k8sClient
-		configurerConfig.Logger = config.Logger
+		installerConfig.FileSystem = osFileSystem
+		installerConfig.K8sClient = k8sClient
+		installerConfig.Logger = config.Logger
 
-		configurerConfig.Flag = config.Flag
-		configurerConfig.Type = configurerspec.ConfigurerType(t)
-		configurerConfig.Viper = config.Viper
+		installerConfig.Flag = config.Flag
+		installerConfig.Type = installerspec.InstallerType(config.Viper.GetString(config.Flag.Service.Installer.Type))
+		installerConfig.Viper = config.Viper
 
-		configurerService, err := configurer.New(configurerConfig)
+		installerService, err = installer.New(installerConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-
-		configurerServices = append(configurerServices, configurerService)
 	}
 
 	var projectResource *project.Resource
 	{
 		projectConfig := project.DefaultConfig()
 
-		projectConfig.Configurers = configurerServices
-		projectConfig.FileSystem = osFileSystem
+		projectConfig.Installer = installerService
 		projectConfig.Logger = config.Logger
-
-		projectConfig.HelmBinaryPath = config.Viper.GetString(config.Flag.Service.Helm.HelmBinaryPath)
-		projectConfig.Organisation = config.Viper.GetString(config.Flag.Service.Helm.Organisation)
-		projectConfig.Password = config.Viper.GetString(config.Flag.Service.Helm.Password)
-		projectConfig.Registry = config.Viper.GetString(config.Flag.Service.Helm.Registry)
-		projectConfig.Username = config.Viper.GetString(config.Flag.Service.Helm.Username)
 
 		projectResource, err = project.New(projectConfig)
 		if err != nil {

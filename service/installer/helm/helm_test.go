@@ -1,21 +1,23 @@
-package project
+package helm
 
 import (
 	"testing"
+
+	"github.com/giantswarm/draughtsman-operator/service/installer/spec"
 )
 
-// Test_Resource_Project_versionedChartName tests the versionedChartName method.
-func Test_Resource_Project_versionedChartName(t *testing.T) {
+// Test_Installer_Helm_versionedChartName tests the versionedChartName method.
+func Test_Installer_Helm_versionedChartName(t *testing.T) {
 	tests := []struct {
 		registry          string
 		organisation      string
-		project           Project
+		project           spec.Project
 		expectedChartName string
 	}{
 		{
 			registry:     "quay.io",
 			organisation: "giantswarm",
-			project: Project{
+			project: spec.Project{
 				Name: "api",
 				Ref:  "12345",
 			},
@@ -24,12 +26,12 @@ func Test_Resource_Project_versionedChartName(t *testing.T) {
 	}
 
 	for index, test := range tests {
-		r := Resource{
+		i := Installer{
 			registry:     test.registry,
 			organisation: test.organisation,
 		}
 
-		returnedChartName := r.versionedChartName(test.project)
+		returnedChartName := i.versionedChartName(test.project)
 
 		if returnedChartName != test.expectedChartName {
 			t.Fatalf(
@@ -40,18 +42,18 @@ func Test_Resource_Project_versionedChartName(t *testing.T) {
 	}
 }
 
-// Test_Resource_Project_tarballName tests the tarballName method.
-func Test_Resource_Project_tarballName(t *testing.T) {
+// Test_Installer_Helm_tarballName tests the tarballName method.
+func Test_Installer_Helm_tarballName(t *testing.T) {
 	tests := []struct {
 		registry            string
 		organisation        string
-		project             Project
+		project             spec.Project
 		expectedTarballName string
 	}{
 		{
 			registry:     "quay.io",
 			organisation: "giantswarm",
-			project: Project{
+			project: spec.Project{
 				Name: "api",
 				Ref:  "12345",
 			},
@@ -60,12 +62,12 @@ func Test_Resource_Project_tarballName(t *testing.T) {
 	}
 
 	for index, test := range tests {
-		r := Resource{
+		i := Installer{
 			registry:     test.registry,
 			organisation: test.organisation,
 		}
 
-		returnedTarballName := r.tarballName(test.project)
+		returnedTarballName := i.tarballName(test.project)
 
 		if returnedTarballName != test.expectedTarballName {
 			t.Fatalf(
