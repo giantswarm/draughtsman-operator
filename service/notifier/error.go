@@ -1,4 +1,4 @@
-package installer
+package notifier
 
 import "github.com/giantswarm/microerror"
 

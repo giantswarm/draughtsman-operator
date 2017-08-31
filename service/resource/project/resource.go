@@ -7,6 +7,7 @@ import (
 	"github.com/giantswarm/operatorkit/framework"
 
 	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
+	notifierspec "github.com/giantswarm/draughtsman-operator/service/notifier/spec"
 )
 
 const (
@@ -19,6 +20,7 @@ type Config struct {
 	// Dependencies.
 	Installer installerspec.Installer
 	Logger    micrologger.Logger
+	Notifier  notifierspec.Notifier
 }
 
 // DefaultConfig provides a default configuration to create a new project
@@ -28,6 +30,7 @@ func DefaultConfig() Config {
 		// Dependencies.
 		Installer: nil,
 		Logger:    nil,
+		Notifier:  nil,
 	}
 }
 
@@ -36,6 +39,7 @@ type Resource struct {
 	// Dependencies.
 	installer installerspec.Installer
 	logger    micrologger.Logger
+	notifier  notifierspec.Notifier
 }
 
 // New creates a new configured project resource.
@@ -47,6 +51,9 @@ func New(config Config) (*Resource, error) {
 	if config.Logger == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
 	}
+	if config.Notifier == nil {
+		return nil, microerror.Maskf(invalidConfigError, "config.Notifier must not be empty")
+	}
 
 	newResource := &Resource{
 		// Dependencies.
@@ -54,6 +61,7 @@ func New(config Config) (*Resource, error) {
 		logger: config.Logger.With(
 			"resource", Name,
 		),
+		notifier: config.Notifier,
 	}
 
 	return newResource, nil
@@ -185,9 +193,19 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 		r.logger.Log("debug", "creating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToCreate {
-			err := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
-			if err != nil {
-				return microerror.Mask(err)
+			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
+			if instErr != nil {
+				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
+				if notiErr != nil {
+					return microerror.Mask(notiErr)
+				}
+
+				return microerror.Mask(instErr)
+			}
+
+			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
+			if notiErr != nil {
+				return microerror.Mask(notiErr)
 			}
 		}
 
@@ -214,9 +232,19 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 		r.logger.Log("debug", "updating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToUpdate {
-			err := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
-			if err != nil {
-				return microerror.Mask(err)
+			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
+			if instErr != nil {
+				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
+				if notiErr != nil {
+					return microerror.Mask(notiErr)
+				}
+
+				return microerror.Mask(instErr)
+			}
+
+			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
+			if notiErr != nil {
+				return microerror.Mask(notiErr)
 			}
 		}
 
