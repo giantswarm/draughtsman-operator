@@ -139,7 +139,7 @@ func mainWithError() error {
 	daemonCommand := newCommand.DaemonCommand().CobraCommand()
 
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Key, "values", "Key in configmap holding values data.")
-	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Name, "draughtsman-values", "Name of configmap holding values data.")
+	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Name, "draughtsman-values-configmap", "Name of configmap holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Namespace, "draughtsman", "Namespace of configmap holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.File.Path, "", "Path to values file.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Key, "values", "Key in secret holding values data.")
