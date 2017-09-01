@@ -11,6 +11,6 @@ data:
     service:
       eventer:
         github:
-          organisation: {{ .Values.Installation.V1.DraughtsmanOperator.Eventer.Github.Organisation }}
+          organisation: {{ .Values.Installation.V1.GiantSwarm.DraughtsmanOperator.Eventer.Github.Organisation }}
       kubernetes:
         incluster: true
