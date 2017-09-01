@@ -147,6 +147,7 @@ func mainWithError() error {
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Namespace, "draughtsman", "Namespace of secret holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Types, string(configmap.ConfigurerType)+","+string(secret.ConfigurerType), "Comma separated list of configurers to use for configuration management.")
 
+	daemonCommand.PersistentFlags().String(f.Service.Eventer.Environment, "", "Environment name that draughtsman is running in.")
 	daemonCommand.PersistentFlags().String(f.Service.Eventer.GitHub.OAuthToken, "", "OAuth token for authenticating against GitHub. Needs 'repo_deployment' scope.")
 	daemonCommand.PersistentFlags().String(f.Service.Eventer.GitHub.Organisation, "", "Organisation under which to check for deployments.")
 	daemonCommand.PersistentFlags().String(f.Service.Eventer.Type, string(github.GithubEventerType), "Which eventer to use for event management.")

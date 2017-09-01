@@ -5,6 +5,7 @@ import (
 )
 
 type Eventer struct {
-	GitHub github.GitHub
-	Type   string
+	Environment string
+	GitHub      github.GitHub
+	Type        string
 }
