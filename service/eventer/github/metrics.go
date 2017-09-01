@@ -1,0 +1,111 @@
+package github
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/giantswarm/microerror"
+)
+
+const (
+	// prometheusNamespace is the namespace to use for Prometheus metrics.
+	// See: https://godoc.org/github.com/prometheus/client_golang/prometheus#Opts
+	prometheusNamespace = "draughtsman"
+
+	// prometheusSubsystem is the subsystem to use for Prometheus metrics.
+	// See: https://godoc.org/github.com/prometheus/client_golang/prometheus#Opts
+	prometheusSubsystem = "github_eventer"
+
+	// rateLimitLimitHeader is the header set by GitHub to show the total
+	// rate limit value.
+	// See: https://developer.github.com/v3/#rate-limiting
+	rateLimitLimitHeader = "X-RateLimit-Limit"
+
+	// rateLimitRemainingHeader is the header set by GitHub to show the
+	// remaining rate limit value.
+	// See: https://developer.github.com/v3/#rate-limiting
+	rateLimitRemainingHeader = "X-RateLimit-Remaining"
+)
+
+var (
+	rateLimitLimit = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: prometheusNamespace,
+		Subsystem: prometheusSubsystem,
+		Name:      "rate_limit_limit",
+		Help:      "Rate limit limit for GitHub API requests.",
+	})
+	rateLimitRemaining = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: prometheusNamespace,
+		Subsystem: prometheusSubsystem,
+		Name:      "rate_limit_remaining",
+		Help:      "Rate limit remaining for GitHub API requests.",
+	})
+
+	deploymentStatusRequestDuration = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: prometheusNamespace,
+			Subsystem: prometheusSubsystem,
+			Name:      "github_deployment_status_duration_milliseconds",
+			Help:      "Time taken to request GitHub deployment statuses.",
+		},
+		[]string{"method", "organisation", "project", "code"},
+	)
+	deploymentStatusResponseCodeTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: prometheusNamespace,
+			Subsystem: prometheusSubsystem,
+			Name:      "github_deployment_status_response_code",
+			Help:      "Response codes of GitHub API requests for deployment statuses.",
+		},
+		[]string{"method", "organisation", "project", "code"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(rateLimitLimit)
+	prometheus.MustRegister(rateLimitRemaining)
+
+	prometheus.MustRegister(deploymentStatusRequestDuration)
+	prometheus.MustRegister(deploymentStatusResponseCodeTotal)
+}
+
+// updateRateLimitMetrics is a utility function that takes a Response
+// containing rate limit headers, and updates the rate limit metrics.
+func updateRateLimitMetrics(response *http.Response) error {
+	rateLimitLimitValue, err := strconv.ParseFloat(response.Header.Get(rateLimitLimitHeader), 64)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	rateLimitLimit.Set(rateLimitLimitValue)
+
+	rateLimitRemainingValue, err := strconv.ParseFloat(response.Header.Get(rateLimitRemainingHeader), 64)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	rateLimitRemaining.Set(rateLimitRemainingValue)
+
+	return nil
+}
+
+// updateDeploymentStatusMetrics is a utility function for updating metrics
+// related to Deployment Status API calls.
+func updateDeploymentStatusMetrics(method, organisation, project string, statusCode int, startTime time.Time) {
+	deploymentStatusRequestDuration.WithLabelValues(
+		method,
+		organisation,
+		project,
+		strconv.Itoa(statusCode),
+	).Set(
+		float64(time.Since(startTime) / time.Millisecond),
+	)
+
+	deploymentStatusResponseCodeTotal.WithLabelValues(
+		method,
+		organisation,
+		project,
+		strconv.Itoa(statusCode),
+	).Inc()
+}

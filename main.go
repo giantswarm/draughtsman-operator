@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/microkit/command"
@@ -18,6 +19,7 @@ import (
 	"github.com/giantswarm/draughtsman-operator/service"
 	"github.com/giantswarm/draughtsman-operator/service/configurer/configmap"
 	"github.com/giantswarm/draughtsman-operator/service/configurer/secret"
+	"github.com/giantswarm/draughtsman-operator/service/eventer/github"
 	"github.com/giantswarm/draughtsman-operator/service/installer/helm"
 	"github.com/giantswarm/draughtsman-operator/service/notifier/slack"
 )
@@ -136,19 +138,6 @@ func mainWithError() error {
 
 	daemonCommand := newCommand.DaemonCommand().CobraCommand()
 
-	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.Address, "http://127.0.0.1:6443", "Address used to connect to Kubernetes. When empty in-cluster config is created.")
-	daemonCommand.PersistentFlags().Bool(f.Service.Kubernetes.InCluster, false, "Whether to use the in-cluster config to authenticate with Kubernetes.")
-	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CAFile, "", "Certificate authority file path to use to authenticate with Kubernetes.")
-	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CrtFile, "", "Certificate file path to use to authenticate with Kubernetes.")
-	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.KeyFile, "", "Key file path to use to authenticate with Kubernetes.")
-
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.HelmBinaryPath, "/bin/helm", "Path to Helm binary. Needs CNR registry plugin installed.")
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Organisation, "", "Organisation of Helm CNR registry.")
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Password, "", "Password for Helm CNR registry.")
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Registry, "quay.io", "URL for Helm CNR registry.")
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Username, "", "Username for Helm CNR registry.")
-	daemonCommand.PersistentFlags().String(f.Service.Installer.Type, string(helm.HelmInstallerType), "Which installer to use for installation management.")
-
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Key, "values", "Key in configmap holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Name, "draughtsman-values", "Name of configmap holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.ConfigMap.Namespace, "draughtsman", "Namespace of configmap holding values data.")
@@ -157,6 +146,25 @@ func mainWithError() error {
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Name, "draughtsman-values-secret", "Name of secret holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Secret.Namespace, "draughtsman", "Namespace of secret holding values data.")
 	daemonCommand.PersistentFlags().String(f.Service.Configurer.Types, string(configmap.ConfigurerType)+","+string(secret.ConfigurerType), "Comma separated list of configurers to use for configuration management.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Eventer.GitHub.OAuthToken, "", "OAuth token for authenticating against GitHub. Needs 'repo_deployment' scope.")
+	daemonCommand.PersistentFlags().String(f.Service.Eventer.GitHub.Organisation, "", "Organisation under which to check for deployments.")
+	daemonCommand.PersistentFlags().String(f.Service.Eventer.Type, string(github.GithubEventerType), "Which eventer to use for event management.")
+
+	daemonCommand.PersistentFlags().Duration(f.Service.HTTPClient.Timeout, 10*time.Second, "Timeout for HTTP requests.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.HelmBinaryPath, "/bin/helm", "Path to Helm binary. Needs CNR registry plugin installed.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Organisation, "", "Organisation of Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Password, "", "Password for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Registry, "quay.io", "URL for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Helm.Username, "", "Username for Helm CNR registry.")
+	daemonCommand.PersistentFlags().String(f.Service.Installer.Type, string(helm.HelmInstallerType), "Which installer to use for installation management.")
+
+	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.Address, "http://127.0.0.1:6443", "Address used to connect to Kubernetes. When empty in-cluster config is created.")
+	daemonCommand.PersistentFlags().Bool(f.Service.Kubernetes.InCluster, false, "Whether to use the in-cluster config to authenticate with Kubernetes.")
+	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CAFile, "", "Certificate authority file path to use to authenticate with Kubernetes.")
+	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.CrtFile, "", "Certificate file path to use to authenticate with Kubernetes.")
+	daemonCommand.PersistentFlags().String(f.Service.Kubernetes.TLS.KeyFile, "", "Key file path to use to authenticate with Kubernetes.")
 
 	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Channel, "", "Channel to post Slack notifications to.")
 	daemonCommand.PersistentFlags().String(f.Service.Notifier.Slack.Emoji, ":older_man:", "Emoji to use for Slack notifications.")
