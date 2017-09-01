@@ -12,5 +12,11 @@ data:
       eventer:
         github:
           organisation: {{ .Values.Installation.V1.GiantSwarm.DraughtsmanOperator.Eventer.Github.Organisation }}
+      installer:
+        helm:
+          organisation: {{ .Values.Installation.V1.GiantSwarm.DraughtsmanOperator.Installer.Helm.Organisation }}
       kubernetes:
         incluster: true
+      notifier:
+        slack:
+          channel: {{ .Values.Installation.V1.GiantSwarm.DraughtsmanOperator.Notifier.Slack.Channel }}
