@@ -4,6 +4,7 @@ package spec
 type NotifierType string
 
 type Project struct {
+	ID   string
 	Name string
 	Ref  string
 }
