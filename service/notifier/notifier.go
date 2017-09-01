@@ -58,9 +58,7 @@ func New(config Config) (spec.Notifier, error) {
 
 		slackConfig.Channel = config.Viper.GetString(config.Flag.Service.Notifier.Slack.Channel)
 		slackConfig.Emoji = config.Viper.GetString(config.Flag.Service.Notifier.Slack.Emoji)
-		// TODO configure env in separate PR when adding eventer to sort out deployment event status updates.
-		//slackConfig.Environment = config.Viper.GetString(config.Flag.Service.Eventer.Environment)
-		slackConfig.Environment = "TODO"
+		slackConfig.Environment = config.Viper.GetString(config.Flag.Service.Eventer.Environment)
 		slackConfig.Username = config.Viper.GetString(config.Flag.Service.Notifier.Slack.Username)
 
 		newNotifier, err = slacknotifier.New(slackConfig)
