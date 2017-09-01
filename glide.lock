@@ -1,5 +1,5 @@
 hash: 99acef13e263b9de9db975848ed04aace9dd2566a12106949fd66dcd76d896a0
-updated: 2017-08-31T14:17:37.185371516+02:00
+updated: 2017-09-01T11:10:30.040550613+02:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -28,7 +28,7 @@ imports:
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/giantswarm/draughtsmantpr
-  version: 4ce74fde71c87c09aa673e4942d14e6e82e6ff0f
+  version: bada27cff634af38c85e6a38c89f8c76217aa866
   subpackages:
   - spec
 - name: github.com/giantswarm/microendpoint
@@ -146,7 +146,7 @@ imports:
 - name: github.com/pelletier/go-toml
   version: 9c1b4e331f1e3d98e72600677699fbe212cd6d16
 - name: github.com/prometheus/client_golang
-  version: 535f493f5a875ebde111871209251257ef834ad1
+  version: 967789050ba94deca04a5e84cce8ad472ce313c1
   subpackages:
   - prometheus
   - prometheus/promhttp
@@ -169,7 +169,7 @@ imports:
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/spf13/afero
-  version: 36f8810e2e3d7eeac4ac05b57f65690fbfba62a2
+  version: ee1bd8ee15a1306d1f9201acc41ef39cd9f99a1b
   subpackages:
   - mem
 - name: github.com/spf13/cast
