@@ -1,6 +1,7 @@
 package project
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/giantswarm/draughtsmantpr"
@@ -101,7 +102,7 @@ func (r *Resource) GetDesiredState(obj interface{}) (interface{}, error) {
 	var desiredProjects []Project
 
 	for _, p := range customObject.Spec.Projects {
-		desiredProjects = append(desiredProjects, Project{Name: p.Name, Ref: p.Ref})
+		desiredProjects = append(desiredProjects, Project{ID: p.ID, Name: p.Name, Ref: p.Ref})
 	}
 
 	return desiredProjects, nil
@@ -196,13 +197,18 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 		r.logger.Log("debug", "creating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToCreate {
+			ID, err := strconv.Atoi(p.ID)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+
 			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
 			if instErr != nil {
-				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: ID, Name: p.Name, Sha: p.Ref})
 				if evenErr != nil {
 					return microerror.Mask(evenErr)
 				}
-				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
+				notiErr := r.notifier.Failed(notifierspec.Project{ID: p.ID, Name: p.Name, Ref: p.Ref}, instErr.Error())
 				if notiErr != nil {
 					return microerror.Mask(notiErr)
 				}
@@ -210,11 +216,11 @@ func (r *Resource) ProcessCreateState(obj, createState interface{}) error {
 				return microerror.Mask(instErr)
 			}
 
-			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: ID, Name: p.Name, Sha: p.Ref})
 			if evenErr != nil {
 				return microerror.Mask(evenErr)
 			}
-			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
+			notiErr := r.notifier.Success(notifierspec.Project{ID: p.ID, Name: p.Name, Ref: p.Ref})
 			if notiErr != nil {
 				return microerror.Mask(notiErr)
 			}
@@ -243,13 +249,18 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 		r.logger.Log("debug", "updating projects in the Kubernetes cluster")
 
 		for _, p := range projectsToUpdate {
+			ID, err := strconv.Atoi(p.ID)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+
 			instErr := r.installer.Install(installerspec.Project{Name: p.Name, Ref: p.Ref})
 			if instErr != nil {
-				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+				evenErr := r.eventer.SetFailedStatus(eventerspec.DeploymentEvent{ID: ID, Name: p.Name, Sha: p.Ref})
 				if evenErr != nil {
 					return microerror.Mask(evenErr)
 				}
-				notiErr := r.notifier.Failed(notifierspec.Project{Name: p.Name, Ref: p.Ref}, instErr.Error())
+				notiErr := r.notifier.Failed(notifierspec.Project{ID: p.ID, Name: p.Name, Ref: p.Ref}, instErr.Error())
 				if notiErr != nil {
 					return microerror.Mask(notiErr)
 				}
@@ -257,11 +268,11 @@ func (r *Resource) ProcessUpdateState(obj, updateState interface{}) error {
 				return microerror.Mask(instErr)
 			}
 
-			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: 0, Name: p.Name, Sha: p.Ref})
+			evenErr := r.eventer.SetSuccessStatus(eventerspec.DeploymentEvent{ID: ID, Name: p.Name, Sha: p.Ref})
 			if evenErr != nil {
 				return microerror.Mask(evenErr)
 			}
-			notiErr := r.notifier.Success(notifierspec.Project{Name: p.Name, Ref: p.Ref})
+			notiErr := r.notifier.Success(notifierspec.Project{ID: p.ID, Name: p.Name, Ref: p.Ref})
 			if notiErr != nil {
 				return microerror.Mask(notiErr)
 			}

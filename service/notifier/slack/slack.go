@@ -22,11 +22,14 @@ const (
 	// failedMessageFormat is the format for failure Slack messages. Templated
 	// with the error message itself.
 	failedMessageFormat = "Encountered an error ```%v```"
+	// footerFormat is the format for footers for Slack messages. Templated with
+	// the environment name, and the deployment ID. e.g: "jabberwocky (12345)"
+	footerFormat = "%s (%s)"
 	// successMessage is the message for success Slack messages.
 	successMessage = "Successfully deployed"
 	// titleFormat is the format for titles for Slack messages. Templated with the
-	// repository name, and sha, e.g: "api - 12345".
-	titleFormat = "%v - %v"
+	// repository name, and sha, e.g: "api - 1a2b3c4d5f".
+	titleFormat = "%s - %s"
 )
 
 // SlackNotifierType is an Notifier that uses Slack.
@@ -156,7 +159,7 @@ func (n *Notifier) postSlackMessage(project spec.Project, errorMessage string) e
 	if success {
 		attachment.Text = successMessage
 	}
-	attachment.Footer = n.environment
+	attachment.Footer = fmt.Sprintf(footerFormat, n.environment, project.ID)
 
 	params := slack.PostMessageParameters{}
 
