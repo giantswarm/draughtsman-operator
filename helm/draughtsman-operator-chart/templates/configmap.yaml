@@ -9,5 +9,8 @@ data:
       listen:
         address: 'http://0.0.0.0:8000'
     service:
+      eventer:
+        github:
+          organisation: {{ .Values.Installation.V1.DraughtsmanOperator.Eventer.Github.Organisation }}
       kubernetes:
         incluster: true
