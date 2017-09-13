@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/cenk/backoff"
 	"github.com/giantswarm/microendpoint/service/version"
@@ -244,10 +245,17 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var operatorBackOff *backoff.ExponentialBackOff
+	{
+		operatorBackOff = backoff.NewExponentialBackOff()
+		operatorBackOff.MaxElapsedTime = 5 * time.Minute
+	}
+
 	var operatorService *operator.Service
 	{
 		operatorConfig := operator.DefaultConfig()
 
+		operatorConfig.BackOff = operatorBackOff
 		operatorConfig.K8sClient = k8sClient
 		operatorConfig.Logger = config.Logger
 		operatorConfig.OperatorFramework = operatorFramework
