@@ -1,14 +1,14 @@
 hash: 99acef13e263b9de9db975848ed04aace9dd2566a12106949fd66dcd76d896a0
-updated: 2017-09-18T10:01:23.44494464+02:00
+updated: 2017-09-18T13:03:44.198554196+02:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
   subpackages:
   - quantile
 - name: github.com/cenk/backoff
-  version: 61153c768f31ee5f130071d08fc82b85208528de
+  version: 80e08cb804a3eb3e576876c777e957e874609a9a
 - name: github.com/cenkalti/backoff
-  version: 61153c768f31ee5f130071d08fc82b85208528de
+  version: 80e08cb804a3eb3e576876c777e957e874609a9a
 - name: github.com/davecgh/go-spew
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
@@ -66,10 +66,11 @@ imports:
   subpackages:
   - memory
 - name: github.com/giantswarm/operatorkit
-  version: 5b21cb40b6a445fdd6dbdf44aa1dff218368ebc8
+  version: d6088a9cea5f07b8395f7e9d49d8c59032286230
   subpackages:
   - client/k8s
   - framework
+  - framework/cancelercontext
   - framework/logresource
   - framework/metricsresource
   - framework/retryresource
