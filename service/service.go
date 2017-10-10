@@ -3,7 +3,6 @@
 package service
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -68,12 +67,6 @@ func DefaultConfig() Config {
 
 // New creates a new configured service object.
 func New(config Config) (*Service, error) {
-	// Dependencies.
-	if config.Logger == nil {
-		return nil, microerror.Maskf(invalidConfigError, "config.Logger must not be empty")
-	}
-	config.Logger.Log("debug", fmt.Sprintf("creating draughtsman-operator with config: %#v", config))
-
 	// Settings.
 	if config.Flag == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Flag must not be empty")
