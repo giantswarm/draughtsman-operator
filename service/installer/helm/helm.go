@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// tarballNameFormat is the format for the name of the chart tarball.
-	tarballNameFormat = "%v_%v-chart_1.0.0-%v.tar.gz"
+	// chartNameFormat is the format for the name of the chart folder.
+	chartNameFormat = "%v_%v-chart_1.0.0-%v/%v-chart"
 	// versionedChartFormat is the format the CNR registry uses to address
 	// charts. For example, we use this to address that chart to pull.
 	versionedChartFormat = "%v/%v/%v-chart@1.0.0-%v"
@@ -144,7 +144,7 @@ func (i *Installer) Install(project spec.Project) error {
 
 	var err error
 
-	// We create a tmp dir in which all Helm values files and tarballs are written
+	// We create a tmp dir in which all Helm values files and charts are written
 	// to. After we are done we can just remove the whole tmp dir to clean up.
 	var tmpDir string
 	{
@@ -160,20 +160,20 @@ func (i *Installer) Install(project spec.Project) error {
 		}()
 	}
 
-	var tarballPath string
+	var chartPath string
 	{
-		tarballPath = path.Join(tmpDir, i.tarballName(project))
+		chartPath = path.Join(tmpDir, i.chartName(project))
 
-		_, err := i.runHelmCommand("pull", "registry", "pull", "--dest", tmpDir, "--tarball", i.versionedChartName(project))
+		_, err := i.runHelmCommand("pull", "registry", "pull", "--dest", tmpDir, "--chart", i.versionedChartName(project))
 		if err != nil {
 			return microerror.Mask(err)
 		}
-		exists, err := afero.Exists(i.fileSystem, tarballPath)
+		exists, err := afero.Exists(i.fileSystem, chartPath)
 		if !exists {
-			return microerror.Maskf(helmError, "could not find downloaded tarball at '%s'", tarballPath)
+			return microerror.Maskf(helmError, "could not find downloaded chart at '%s'", chartPath)
 		}
 
-		i.logger.Log("debug", "downloaded chart", "tarball", tarballPath)
+		i.logger.Log("debug", "downloaded chart", "chart", chartPath)
 	}
 
 	// The installer accepts multiple configurers during initialization. Here we
@@ -198,13 +198,13 @@ func (i *Installer) Install(project spec.Project) error {
 	// The arguments used to execute Helm for app installation can take multiple
 	// values files. At the end the command looks something like this.
 	//
-	//     helm upgrade --install --values ${file1} --values $(file2) ${project} ${tarball_path}
+	//     helm upgrade --install --values ${file1} --values $(file2) ${project} ${chart_path}
 	//
 	var installCommand []string
 	{
 		installCommand = append(installCommand, "upgrade", "--install")
 		installCommand = append(installCommand, valuesFilesArgs...)
-		installCommand = append(installCommand, project.Name, tarballPath)
+		installCommand = append(installCommand, project.Name, chartPath)
 
 		_, err := i.runHelmCommand("install", installCommand...)
 		if err != nil {
@@ -269,13 +269,14 @@ func (i *Installer) runHelmCommand(name string, args ...string) ([]byte, error) 
 	return b, nil
 }
 
-// tarballName builds a tarball name, given a project name and sha.
-func (i *Installer) tarballName(project spec.Project) string {
+// chartName builds a chart name, given a project name and sha.
+func (i *Installer) chartName(project spec.Project) string {
 	return fmt.Sprintf(
-		tarballNameFormat,
+		chartNameFormat,
 		i.organisation,
 		project.Name,
 		project.Ref,
+		project.Name,
 	)
 }
 
