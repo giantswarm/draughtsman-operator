@@ -43,13 +43,13 @@ func Test_Installer_Helm_versionedChartName(t *testing.T) {
 	}
 }
 
-// Test_Installer_Helm_tarballName tests the tarballName method.
-func Test_Installer_Helm_tarballName(t *testing.T) {
+// Test_Installer_Helm_chartName tests the chartName method.
+func Test_Installer_Helm_chartName(t *testing.T) {
 	tests := []struct {
-		registry            string
-		organisation        string
-		project             spec.Project
-		expectedTarballName string
+		registry          string
+		organisation      string
+		project           spec.Project
+		expectedChartName string
 	}{
 		{
 			registry:     "quay.io",
@@ -58,7 +58,7 @@ func Test_Installer_Helm_tarballName(t *testing.T) {
 				Name: "api",
 				Ref:  "12345",
 			},
-			expectedTarballName: "giantswarm_api-chart_1.0.0-12345.tar.gz",
+			expectedChartName: "giantswarm_api-chart_1.0.0-12345/api-chart",
 		},
 	}
 
@@ -68,12 +68,12 @@ func Test_Installer_Helm_tarballName(t *testing.T) {
 			organisation: test.organisation,
 		}
 
-		returnedTarballName := i.tarballName(test.project)
+		returnedChartName := i.chartName(test.project)
 
-		if returnedTarballName != test.expectedTarballName {
+		if returnedChartName != test.expectedChartName {
 			t.Fatalf(
 				"%v\nexpected: %#v\nreturned: %#v\n",
-				index, test.expectedTarballName, returnedTarballName,
+				index, test.expectedChartName, returnedChartName,
 			)
 		}
 	}
