@@ -3,21 +3,27 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/cenk/backoff"
+	"github.com/giantswarm/draughtsmantpr"
+	"github.com/giantswarm/kvm-operator/service/messagecontext"
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
-	"github.com/giantswarm/operatorkit/client/k8s"
+	"github.com/giantswarm/operatorkit/client/k8sclient"
 	"github.com/giantswarm/operatorkit/framework"
-	"github.com/giantswarm/operatorkit/framework/logresource"
-	"github.com/giantswarm/operatorkit/framework/metricsresource"
-	"github.com/giantswarm/operatorkit/framework/retryresource"
+	"github.com/giantswarm/operatorkit/framework/resource/logresource"
+	"github.com/giantswarm/operatorkit/framework/resource/metricsresource"
+	"github.com/giantswarm/operatorkit/framework/resource/retryresource"
+	"github.com/giantswarm/operatorkit/informer"
+	"github.com/giantswarm/operatorkit/tpr"
 	"github.com/spf13/afero"
 	"github.com/spf13/viper"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/giantswarm/draughtsman-operator/flag"
@@ -32,42 +38,39 @@ import (
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
 
-// Config represents the configuration used to create a new service.
 type Config struct {
-	// Dependencies.
 	Logger micrologger.Logger
 
-	// Settings.
-	Flag  *flag.Flag
-	Viper *viper.Viper
-
 	Description string
+	Flag        *flag.Flag
 	GitCommit   string
 	Name        string
 	Source      string
+	Viper       *viper.Viper
 }
 
-// DefaultConfig provides a default configuration to create a new service by
-// best effort.
 func DefaultConfig() Config {
 	return Config{
-		// Dependencies.
 		Logger: nil,
 
-		// Settings.
-		Flag:  nil,
-		Viper: nil,
-
 		Description: "",
+		Flag:        nil,
 		GitCommit:   "",
 		Name:        "",
 		Source:      "",
+		Viper:       nil,
 	}
 }
 
-// New creates a new configured service object.
+type Service struct {
+	Healthz  *healthz.Service
+	Operator *operator.Operator
+	Version  *version.Service
+
+	bootOnce sync.Once
+}
+
 func New(config Config) (*Service, error) {
-	// Settings.
 	if config.Flag == nil {
 		return nil, microerror.Maskf(invalidConfigError, "config.Flag must not be empty")
 	}
@@ -79,7 +82,7 @@ func New(config Config) (*Service, error) {
 
 	var k8sClient kubernetes.Interface
 	{
-		k8sConfig := k8s.DefaultConfig()
+		k8sConfig := k8sclient.DefaultConfig()
 
 		k8sConfig.Address = config.Viper.GetString(config.Flag.Service.Kubernetes.Address)
 		k8sConfig.Logger = config.Logger
@@ -88,7 +91,7 @@ func New(config Config) (*Service, error) {
 		k8sConfig.TLS.CrtFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.CrtFile)
 		k8sConfig.TLS.KeyFile = config.Viper.GetString(config.Flag.Service.Kubernetes.TLS.KeyFile)
 
-		k8sClient, err = k8s.NewClient(k8sConfig)
+		k8sClient, err = k8sclient.New(k8sConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -213,20 +216,69 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
-	var operatorBackOff *backoff.ExponentialBackOff
+	initCtxFunc := func(ctx context.Context, obj interface{}) (context.Context, error) {
+		ctx = messagecontext.NewContext(ctx, messagecontext.NewMessage())
+
+		return ctx, nil
+	}
+
+	var frameworkBackOff *backoff.ExponentialBackOff
 	{
-		operatorBackOff = backoff.NewExponentialBackOff()
-		operatorBackOff.MaxElapsedTime = 5 * time.Minute
+		frameworkBackOff = backoff.NewExponentialBackOff()
+		frameworkBackOff.MaxElapsedTime = 5 * time.Minute
 	}
 
 	var operatorFramework *framework.Framework
 	{
 		frameworkConfig := framework.DefaultConfig()
 
+		frameworkConfig.BackOff = frameworkBackOff
+		frameworkConfig.InitCtxFunc = initCtxFunc
 		frameworkConfig.Logger = config.Logger
 		frameworkConfig.Resources = resources
 
 		operatorFramework, err = framework.New(frameworkConfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
+	var newTPR *tpr.TPR
+	{
+		c := tpr.DefaultConfig()
+
+		c.K8sClient = k8sClient
+		c.Logger = config.Logger
+
+		c.Description = draughtsmantpr.Description
+		c.Name = draughtsmantpr.Name
+		c.Version = draughtsmantpr.VersionV1
+
+		newTPR, err = tpr.New(c)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
+	var newWatcherFactory informer.WatcherFactory
+	{
+		zeroObjectFactory := &informer.ZeroObjectFactoryFuncs{
+			NewObjectFunc:     func() runtime.Object { return &draughtsmantpr.CustomObject{} },
+			NewObjectListFunc: func() runtime.Object { return &draughtsmantpr.List{} },
+		}
+		newWatcherFactory = informer.NewWatcherFactory(k8sClient.Discovery().RESTClient(), newTPR.WatchEndpoint(""), zeroObjectFactory)
+	}
+
+	var newInformer *informer.Informer
+	{
+		informerConfig := informer.DefaultConfig()
+
+		informerConfig.BackOff = backoff.NewExponentialBackOff()
+		informerConfig.WatcherFactory = newWatcherFactory
+
+		informerConfig.ResyncPeriod = 10 * time.Second
+
+		newInformer, err = informer.New(informerConfig)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -245,16 +297,23 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
-	var operatorService *operator.Service
+	var operatorBackOff *backoff.ExponentialBackOff
 	{
-		operatorConfig := operator.DefaultConfig()
+		operatorBackOff = backoff.NewExponentialBackOff()
+		operatorBackOff.MaxElapsedTime = 5 * time.Minute
+	}
 
-		operatorConfig.BackOff = operatorBackOff
-		operatorConfig.K8sClient = k8sClient
-		operatorConfig.Logger = config.Logger
-		operatorConfig.OperatorFramework = operatorFramework
+	var operatorService *operator.Operator
+	{
+		c := operator.DefaultConfig()
 
-		operatorService, err = operator.New(operatorConfig)
+		c.BackOff = operatorBackOff
+		c.Framework = operatorFramework
+		c.Informer = newInformer
+		c.Logger = config.Logger
+		c.TPR = newTPR
+
+		operatorService, err = operator.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -276,26 +335,14 @@ func New(config Config) (*Service, error) {
 	}
 
 	newService := &Service{
-		// Dependencies.
 		Healthz:  healthzService,
 		Operator: operatorService,
 		Version:  versionService,
 
-		// Internals
 		bootOnce: sync.Once{},
 	}
 
 	return newService, nil
-}
-
-type Service struct {
-	// Dependencies.
-	Healthz  *healthz.Service
-	Operator *operator.Service
-	Version  *version.Service
-
-	// Internals.
-	bootOnce sync.Once
 }
 
 func (s *Service) Boot() {
