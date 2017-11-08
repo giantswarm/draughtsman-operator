@@ -10,7 +10,6 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/giantswarm/draughtsmantpr"
-	"github.com/giantswarm/kvm-operator/service/messagecontext"
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
@@ -217,8 +216,6 @@ func New(config Config) (*Service, error) {
 	}
 
 	initCtxFunc := func(ctx context.Context, obj interface{}) (context.Context, error) {
-		ctx = messagecontext.NewContext(ctx, messagecontext.NewMessage())
-
 		return ctx, nil
 	}
 
