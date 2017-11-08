@@ -109,7 +109,7 @@ func (r *Resource) GetDesiredState(ctx context.Context, obj interface{}) (interf
 	return desiredProjects, nil
 }
 
-func (r *Resource) GetCreateState(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
+func (r *Resource) newCreateChange(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
 	currentProjects, err := toProjects(currentState)
 	if err != nil {
 		return nil, microerror.Mask(err)
@@ -130,7 +130,19 @@ func (r *Resource) GetCreateState(ctx context.Context, obj, currentState, desire
 	return projectsToCreate, nil
 }
 
-func (r *Resource) GetDeleteState(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
+func (r *Resource) NewDeletePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
+	delete, err := r.newDeleteChange(ctx, obj, currentState, desiredState)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	patch := framework.NewPatch()
+	patch.SetDeleteChange(delete)
+
+	return patch, nil
+}
+
+func (r *Resource) newDeleteChange(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
 	currentProjects, err := toProjects(currentState)
 	if err != nil {
 		return nil, microerror.Mask(err)
@@ -151,14 +163,32 @@ func (r *Resource) GetDeleteState(ctx context.Context, obj, currentState, desire
 	return projectsToDelete, nil
 }
 
-func (r *Resource) GetUpdateState(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, interface{}, interface{}, error) {
+func (r *Resource) NewUpdatePatch(ctx context.Context, obj, currentState, desiredState interface{}) (*framework.Patch, error) {
+	create, err := r.newCreateChange(ctx, obj, currentState, desiredState)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	update, err := r.newUpdateChange(ctx, obj, currentState, desiredState)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	patch := framework.NewPatch()
+	patch.SetCreateChange(create)
+	patch.SetUpdateChange(update)
+
+	return patch, nil
+}
+
+func (r *Resource) newUpdateChange(ctx context.Context, obj, currentState, desiredState interface{}) (interface{}, error) {
 	currentProjects, err := toProjects(currentState)
 	if err != nil {
-		return nil, nil, nil, microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 	desiredProjects, err := toProjects(desiredState)
 	if err != nil {
-		return nil, nil, nil, microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 
 	var projectsToUpdate []Project
@@ -170,7 +200,7 @@ func (r *Resource) GetUpdateState(ctx context.Context, obj, currentState, desire
 
 		currentProject, err := getProjectByName(currentProjects, desiredProject.Name)
 		if err != nil {
-			return nil, nil, nil, microerror.Mask(err)
+			return nil, microerror.Mask(err)
 		}
 
 		// NOTE that we need to deal with eventually incomplete sha/ref information
@@ -181,15 +211,15 @@ func (r *Resource) GetUpdateState(ctx context.Context, obj, currentState, desire
 		}
 	}
 
-	return []Project{}, []Project{}, projectsToUpdate, nil
+	return projectsToUpdate, nil
 }
 
 func (r *Resource) Name() string {
 	return Name
 }
 
-func (r *Resource) ProcessCreateState(ctx context.Context, obj, createState interface{}) error {
-	projectsToCreate, err := toProjects(createState)
+func (r *Resource) ApplyCreateChange(ctx context.Context, obj, createChange interface{}) error {
+	projectsToCreate, err := toProjects(createChange)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -235,13 +265,13 @@ func (r *Resource) ProcessCreateState(ctx context.Context, obj, createState inte
 	return nil
 }
 
-func (r *Resource) ProcessDeleteState(ctx context.Context, obj, deleteState interface{}) error {
-	r.logger.Log("TODO", "implement ProcessDeleteState")
+func (r *Resource) ApplyDeleteChange(ctx context.Context, obj, deleteChange interface{}) error {
+	r.logger.Log("TODO", "implement ApplyDeleteChange")
 	return nil
 }
 
-func (r *Resource) ProcessUpdateState(ctx context.Context, obj, updateState interface{}) error {
-	projectsToUpdate, err := toProjects(updateState)
+func (r *Resource) ApplyUpdateChange(ctx context.Context, obj, updateChange interface{}) error {
+	projectsToUpdate, err := toProjects(updateChange)
 	if err != nil {
 		return microerror.Mask(err)
 	}
