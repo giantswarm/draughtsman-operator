@@ -5,14 +5,14 @@ import (
 	"time"
 )
 
-func Test_Distribution_Version(t *testing.T) {
+func Test_Release_Version(t *testing.T) {
 	testCases := []struct {
 		Bundles         []Bundle
 		ExpectedVersion string
 		ErrorMatcher    func(err error) bool
 	}{
-		// Test 0 ensures creating a distribution with a nil slice of bundles throws
-		// an error when creating a new distribution type.
+		// Test 0 ensures creating a release with a nil slice of bundles throws
+		// an error when creating a new release type.
 		{
 			Bundles:         nil,
 			ExpectedVersion: "",
@@ -26,7 +26,7 @@ func Test_Distribution_Version(t *testing.T) {
 			ErrorMatcher:    IsInvalidConfig,
 		},
 
-		// Test 2 ensures computing the distribution version when having a list of
+		// Test 2 ensures computing the release version when having a list of
 		// one bundle given works as expected.
 		{
 			Bundles: []Bundle{
@@ -91,7 +91,7 @@ func Test_Distribution_Version(t *testing.T) {
 			ErrorMatcher:    nil,
 		},
 
-		// Test 4 ensures computing the distribution version when having a list of
+		// Test 4 ensures computing the release version when having a list of
 		// two bundles given works as expected.
 		{
 			Bundles: []Bundle{
@@ -240,11 +240,11 @@ func Test_Distribution_Version(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		config := DefaultDistributionConfig()
+		config := DefaultReleaseConfig()
 
 		config.Bundles = tc.Bundles
 
-		d, err := NewDistribution(config)
+		d, err := NewRelease(config)
 		if tc.ErrorMatcher != nil {
 			if !tc.ErrorMatcher(err) {
 				t.Fatalf("test %d expected %#v got %#v", i, true, false)

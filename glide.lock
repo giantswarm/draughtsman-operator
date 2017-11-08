@@ -1,5 +1,5 @@
 hash: e3fb520b25a22d91e52bab4a0340c3df9032a191de7bdde4ec50157ccf162fd5
-updated: 2017-11-08T12:00:45.396799894+01:00
+updated: 2017-11-08T13:18:42.432742804+01:00
 imports:
 - name: github.com/beorn7/perks
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
@@ -80,9 +80,10 @@ imports:
   - framework/resource/logresource
   - framework/resource/metricsresource
   - framework/resource/retryresource
+  - informer
   - tpr
 - name: github.com/giantswarm/versionbundle
-  version: efdbdae719c56ab4880f8fe56643d60a76fc19e5
+  version: f8ff59df874860f935234c17334a1d3783d8024f
 - name: github.com/go-kit/kit
   version: a9ca6725cbbea455e61c6bc8a1ed28e81eb3493b
   subpackages:
@@ -212,7 +213,6 @@ imports:
   version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
   - context
-  - context/ctxhttp
   - http2
   - http2/hpack
   - idna
