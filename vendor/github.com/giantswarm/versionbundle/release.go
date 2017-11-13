@@ -2,6 +2,7 @@ package versionbundle
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/giantswarm/microerror"
@@ -18,13 +19,12 @@ func DefaultReleaseConfig() ReleaseConfig {
 }
 
 type Release struct {
-	bundles     []Bundle
-	changelogs  []Changelog
-	components  []Component
-	deprecated  bool
-	description string
-	timestamp   string
-	version     string
+	bundles    []Bundle
+	changelogs []Changelog
+	components []Component
+	deprecated bool
+	timestamp  string
+	version    string
 }
 
 func NewRelease(config ReleaseConfig) (Release, error) {
@@ -32,14 +32,46 @@ func NewRelease(config ReleaseConfig) (Release, error) {
 		return Release{}, microerror.Maskf(invalidConfigError, "config.Bundles must not be empty")
 	}
 
-	var changelogs []Changelog
-	var components []Component
-	var deprecated bool
-	var timestamp string
+	var err error
 
-	version, err := aggregateReleaseVersion(config.Bundles)
-	if err != nil {
-		return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+	var changelogs []Changelog
+	{
+		changelogs, err = aggregateReleaseChangelogs(config.Bundles)
+		if err != nil {
+			return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+		}
+	}
+
+	var components []Component
+	{
+		components, err = aggregateReleaseComponents(config.Bundles)
+		if err != nil {
+			return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+		}
+	}
+
+	var deprecated bool
+	{
+		deprecated, err = aggregateReleaseDeprecated(config.Bundles)
+		if err != nil {
+			return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+		}
+	}
+
+	var timestamp string
+	{
+		timestamp, err = aggregateReleaseTimestamp(config.Bundles)
+		if err != nil {
+			return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+		}
+	}
+
+	var version string
+	{
+		version, err = aggregateReleaseVersion(config.Bundles)
+		if err != nil {
+			return Release{}, microerror.Maskf(invalidConfigError, err.Error())
+		}
 	}
 
 	r := Release{
@@ -59,19 +91,15 @@ func (r Release) Bundles() []Bundle {
 }
 
 func (r Release) Changelogs() []Changelog {
-	return r.changelogs
+	return CopyChangelogs(r.changelogs)
 }
 
 func (r Release) Components() []Component {
-	return r.components
+	return CopyComponents(r.components)
 }
 
 func (r Release) Deprecated() bool {
 	return r.deprecated
-}
-
-func (r Release) Description() string {
-	return r.description
 }
 
 func (r Release) Timestamp() string {
@@ -80,6 +108,48 @@ func (r Release) Timestamp() string {
 
 func (r Release) Version() string {
 	return r.version
+}
+
+func aggregateReleaseChangelogs(bundles []Bundle) ([]Changelog, error) {
+	var changelogs []Changelog
+
+	for _, b := range bundles {
+		changelogs = append(changelogs, b.Changelogs...)
+	}
+
+	return changelogs, nil
+}
+
+func aggregateReleaseComponents(bundles []Bundle) ([]Component, error) {
+	var components []Component
+
+	for _, b := range bundles {
+		components = append(components, b.Components...)
+	}
+
+	return components, nil
+}
+
+func aggregateReleaseDeprecated(bundles []Bundle) (bool, error) {
+	for _, b := range bundles {
+		if b.Deprecated == true {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func aggregateReleaseTimestamp(bundles []Bundle) (string, error) {
+	var t time.Time
+
+	for _, b := range bundles {
+		if b.Time.After(t) {
+			t = b.Time
+		}
+	}
+
+	return t.Format("2006-01-02T15:04:05.000000Z"), nil
 }
 
 func aggregateReleaseVersion(bundles []Bundle) (string, error) {
