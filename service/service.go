@@ -33,7 +33,6 @@ import (
 	installerspec "github.com/giantswarm/draughtsman-operator/service/installer/spec"
 	"github.com/giantswarm/draughtsman-operator/service/notifier"
 	notifierspec "github.com/giantswarm/draughtsman-operator/service/notifier/spec"
-	"github.com/giantswarm/draughtsman-operator/service/operator"
 	"github.com/giantswarm/draughtsman-operator/service/resource/project"
 )
 
@@ -62,9 +61,9 @@ func DefaultConfig() Config {
 }
 
 type Service struct {
-	Healthz  *healthz.Service
-	Operator *operator.Operator
-	Version  *version.Service
+	Framework *framework.Framework
+	Healthz   *healthz.Service
+	Version   *version.Service
 
 	bootOnce sync.Once
 }
@@ -219,27 +218,6 @@ func New(config Config) (*Service, error) {
 		return ctx, nil
 	}
 
-	var frameworkBackOff *backoff.ExponentialBackOff
-	{
-		frameworkBackOff = backoff.NewExponentialBackOff()
-		frameworkBackOff.MaxElapsedTime = 5 * time.Minute
-	}
-
-	var operatorFramework *framework.Framework
-	{
-		frameworkConfig := framework.DefaultConfig()
-
-		frameworkConfig.BackOff = frameworkBackOff
-		frameworkConfig.InitCtxFunc = initCtxFunc
-		frameworkConfig.Logger = config.Logger
-		frameworkConfig.ResourceRouter = framework.NewDefaultResourceRouter(resources)
-
-		operatorFramework, err = framework.New(frameworkConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
 	var newTPR *tpr.TPR
 	{
 		c := tpr.DefaultConfig()
@@ -281,6 +259,23 @@ func New(config Config) (*Service, error) {
 		}
 	}
 
+	var operatorFramework *framework.Framework
+	{
+		c := framework.DefaultConfig()
+
+		c.BackOffFactory = framework.DefaultBackOffFactory()
+		c.Informer = newInformer
+		c.InitCtxFunc = initCtxFunc
+		c.Logger = config.Logger
+		c.ResourceRouter = framework.DefaultResourceRouter(resources)
+		c.TPR = newTPR
+
+		operatorFramework, err = framework.New(c)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
 	var healthzService *healthz.Service
 	{
 		healthzConfig := healthz.DefaultConfig()
@@ -289,28 +284,6 @@ func New(config Config) (*Service, error) {
 		healthzConfig.Logger = config.Logger
 
 		healthzService, err = healthz.New(healthzConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	}
-
-	var operatorBackOff *backoff.ExponentialBackOff
-	{
-		operatorBackOff = backoff.NewExponentialBackOff()
-		operatorBackOff.MaxElapsedTime = 5 * time.Minute
-	}
-
-	var operatorService *operator.Operator
-	{
-		c := operator.DefaultConfig()
-
-		c.BackOff = operatorBackOff
-		c.Framework = operatorFramework
-		c.Informer = newInformer
-		c.Logger = config.Logger
-		c.TPR = newTPR
-
-		operatorService, err = operator.New(c)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
@@ -332,9 +305,9 @@ func New(config Config) (*Service, error) {
 	}
 
 	newService := &Service{
-		Healthz:  healthzService,
-		Operator: operatorService,
-		Version:  versionService,
+		Framework: operatorFramework,
+		Healthz:   healthzService,
+		Version:   versionService,
 
 		bootOnce: sync.Once{},
 	}
@@ -344,6 +317,6 @@ func New(config Config) (*Service, error) {
 
 func (s *Service) Boot() {
 	s.bootOnce.Do(func() {
-		s.Operator.Boot()
+		s.Framework.Boot()
 	})
 }
