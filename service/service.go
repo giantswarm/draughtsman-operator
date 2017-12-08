@@ -8,14 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenk/backoff"
+	"github.com/cenkalti/backoff"
 	"github.com/giantswarm/draughtsmantpr"
 	"github.com/giantswarm/microendpoint/service/version"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/giantswarm/operatorkit/client/k8sclient"
 	"github.com/giantswarm/operatorkit/framework"
-	"github.com/giantswarm/operatorkit/framework/resource/logresource"
 	"github.com/giantswarm/operatorkit/framework/resource/metricsresource"
 	"github.com/giantswarm/operatorkit/framework/resource/retryresource"
 	"github.com/giantswarm/operatorkit/informer"
@@ -191,13 +190,6 @@ func New(config Config) (*Service, error) {
 			projectResource,
 		}
 
-		logWrapConfig := logresource.DefaultWrapConfig()
-		logWrapConfig.Logger = config.Logger
-		resources, err = logresource.Wrap(resources, logWrapConfig)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-
 		retryWrapConfig := retryresource.DefaultWrapConfig()
 		retryWrapConfig.BackOffFactory = func() backoff.BackOff { return backoff.NewExponentialBackOff() }
 		retryWrapConfig.Logger = config.Logger
@@ -248,7 +240,6 @@ func New(config Config) (*Service, error) {
 	{
 		informerConfig := informer.DefaultConfig()
 
-		informerConfig.BackOff = backoff.NewExponentialBackOff()
 		informerConfig.WatcherFactory = newWatcherFactory
 
 		informerConfig.ResyncPeriod = 10 * time.Second
@@ -263,7 +254,6 @@ func New(config Config) (*Service, error) {
 	{
 		c := framework.DefaultConfig()
 
-		c.BackOffFactory = framework.DefaultBackOffFactory()
 		c.Informer = newInformer
 		c.InitCtxFunc = initCtxFunc
 		c.Logger = config.Logger
