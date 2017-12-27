@@ -22,6 +22,7 @@ spec:
       - name: secret
         secret:
           secretName: draughtsman-operator
+      serviceAccountName: draughtsman-operator
       containers:
       - name: draughtsman-operator
         image: quay.io/giantswarm/draughtsman-operator:[[ .SHA ]]
